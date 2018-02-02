@@ -1,179 +1,289 @@
 <?php
-session_start();
-$sessData = !empty($_SESSION['sessData'])?$_SESSION['sessData']:'';
-if(!empty($sessData['status']['msg'])){
-    $statusMsg = $sessData['status']['msg'];
-    $statusMsgType = $sessData['status']['type'];
-    unset($_SESSION['sessData']['status']);
-}
+	/* Displays user information and some useful messages */
+	session_start();
+	include_once('../location/database.php');
+?>
+	
+<!DOCTYPE HTML>
+<html>
+
+	<head>
+		<title>NavyXP | Timings</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="stylesheet" href="/location/assets/css/main.css" />
+		<link rel="icon" type="image/png" href="/images/fav.png">
+
+		<meta name="description" content="Timing of all Canteens and other Agencies" />
+		<meta property="og:title" content="NavyXP | Timings" />
+		<meta property="og:url" content="https://navyxp.com/location/" />
+		<meta property="og:image" content="https://navyxp.com/images/logo.png" />
+		<meta property="og:type" content="article" />
+				
+		<script src="/location/jquery.min.js"></script>
+		<script type="text/javascript">
+			$(document).ready(function(){
+				$('#state').on('change',function(){
+					var stateID = $(this).val();
+					if(stateID){
+						$.ajax({
+						    type:'POST',
+						    url:'ajaxData.php',
+						    data:'state_id='+stateID,
+						    success:function(html){
+						        $('#city').html(html);
+						        $('#area').html('<option value="">Select City First</option>'); 
+						    }
+						}); 
+					}else{
+						$('#city').html('<option value="">Select State first</option>');
+						$('#area').html('<option value="">Select City first</option>'); 
+					}
+				});
+		
+				$('#city').on('change',function(){
+					var cityID = $(this).val();
+					if(cityID){
+						$.ajax({
+						    type:'POST',
+						    url:'ajaxData.php',
+						    data:'city_id='+cityID,
+						    success:function(html){
+						        $('#area').html(html);
+						    }
+						}); 
+					}else{
+						$('#area').html('<option value="">Select City First</option>'); 
+					}
+				});
+
+			});
+		</script>				
+	</head>	
+	
+	
+	<body>
+		<!-- Header -->
+			<header id="header">
+				<div class="inner">
+					<a href="/"class="logo"><strong> <?php if ( $_SESSION['logged_in'] != 1 ) {echo "Get Timing of Canteens & others";} else {echo "Welcome ".$_SESSION['first_name'];} ?></strong></a>
+				
+					<nav id="nav">
+						<a href="/">Home</a>
+						<a href="/about-us/">About Us</a>
+						<a href="/location/">Search Service</a>
+
+					<!--	<a href="contact-us">Contact Us</a> -->
+						<?php if ($_SESSION['logged_in'] == 1 )
+						{
+							echo "<a href=" . "/login/logout.php" . ">" . "Logout" . "</a>";
+						}
+						else {
+							echo "<a href=" . "/login/" . ">" . "Login" . "</a>";
+						}
+						?>
+						
+						
+					</nav>
+					<a href="#navPanel" class="navPanelToggle"><span class="fa fa-bars"></span></a>
+				</div>
+			</header>
+
+		<!-- Banner -->
+			<section id="banner">
+				<div class="inner">
+					<form name="form1" method="post">  	
+														
+						<?php
+						//Include database configuration file
+				
+						//Get all state data
+						$query = $db->query("SELECT * FROM states WHERE status = 1 ORDER BY state_name ASC");
+		
+						//Count total number of rows
+						$rowCount = $query->num_rows;
+						?>
+						<select name="state" id="state">
+							<option value="">Select state</option>
+							<?php
+							if($rowCount > 0){
+								while($row = $query->fetch_assoc())
+								{ 
+									echo '<option value="'.$row['state_id'].'">'.$row['state_name'].'</option>';
+								}
+							}
+							else
+							{
+								echo '<option value="">state not available</option>';
+							}
+        					?>
+        				
+						</select>
+						<br>
+						<select name="city" id="city">
+							<option value="">Select State First</option>
+						</select>
+						<br>
+						<select name="area" id="area">
+							<option value="">Select City First</option>
+						</select>
+						
+						<br>			
+												
+						<input type="submit" name="update" value="Submit">
+
+					</form>					
+				</div>				
+			</section>
+
+<!-- ///////////// SQL COMMAND BEGINS /////////////////// -->
+
+<?php
+
+	if (empty($_POST["city"])) 
+	{
+		$city ="";
+	}
+	else 
+	{
+		$city = $_POST["city"];
+	}
+
+	if (empty($_POST["area"])) 
+	{
+		$org ="";
+	}
+	else 
+	{
+		$org = $_POST["area"];
+	}
+
+
+	if(isset($_POST['update']))
+	{	
+		$sql_rate = "SELECT * FROM timing WHERE 
+		t_city_id LIKE '%$city%'
+		AND t_org LIKE '%$org%'
+		ORDER BY t_org ASC LIMIT 50"; 	 
+		$result_rate = $connect->query($sql_rate);
+	}
+	
+	else
+		$sql_rate = "SELECT * FROM timing ORDER BY t_org ASC LIMIT 20"; 	 
+		$result_rate = $connect->query($sql_rate);		
+		
+		
+		while($row = $result_rate->fetch_assoc()) 
+		{		
+				$val=$row['t_service'];
+				
+				if ($val == "Army"){
+					$col = "td_red";
+				}
+				
+				if($val== "Navy"){
+					$col = "td_blue";
+				}
+				
+				if($val== "Air Force"){
+					$col = "td_grey";
+				}
+
+			echo "<table>";
+			
+			if (!empty($row['t_org'])) 
+			{
+				echo "<tr>";		
+				echo "<td id=\"$col\" colspan=\"2\">" . $row['t_org']  . "</td>";
+				echo "</tr>";
+			}			
+
+			if (!empty($row['t_address'])) 
+			{
+				echo "<tr>";
+				echo "<td width=\"25%\"><b>Address</b></td>";		
+				echo "<td>" . $row['t_address'] . "</td>";
+				echo "</tr>";
+			}
+
+			if (!empty($row['t_time1'])) 
+			{
+				echo "<tr>";
+				echo "<td width=\"25%\"><b>Timing </b></td>";				
+				echo "<td>" . $row['t_time1'] . "</td>";
+				echo "</tr>";
+			}
+
+			if (!empty($row['t_time2'])) 
+			{
+				echo "<tr>";
+				echo "<td width=\"25%\"></td>";		
+				echo "<td>" . $row['t_time2']  . "</td>";
+				echo "</tr>";
+			}
+
+			if (!empty($row['t_time3'])) 
+			{
+				echo "<tr>";
+				echo "<td width=\"25%\"></td>";								
+				echo "<td>" . $row['t_time3']  . "</td>";
+				echo "</tr>";
+			}
+
+			if (!empty($row['t_time4'])) 
+			{
+				echo "<tr>";
+				echo "<td width=\"25%\"></td>";								
+				echo "<td>" . $row['t_time4']  . "</td>";
+				echo "</tr>";
+			}
+
+			/*if (!empty($row['t_phone'])) 
+			{
+				echo "<tr>";	
+				echo "<td width=\"25%\"><b>Contact</b></td>";					
+				echo "<td>" . $row['t_phone']  . "</td>";
+				echo "</tr>";
+			}*/
+
+	  		if (!empty($row['t_phone'])) {	
+			        echo "<tr>";				
+					echo "<td width=\"25%\"><b>Contact</b></td>";
+					$phone=$row['t_phone'];
+					// Separate 2 phone numbers and add individual link
+					echo "<td>";
+					$phone_array = explode(',', $phone);									
+						foreach($phone_array as $phone) {
+							echo '<a href="tel:'.$phone.'">'.'<b>'. $phone . '</b>' . '</a>'."&nbsp;";
+						}
+										
+					echo "</td>";
+				echo "</tr>";	
+			}
+			
+			if (!empty($row['t_closed'])) 
+			{
+				echo "<tr>";	
+				echo "<td width=\"25%\"><b><font color = \"red\">Closed On</font></b></td>";					
+				echo "<td>" . $row['t_closed']  . "</td>";
+				echo "</tr>";
+			}			
+
+			echo "<table>";
+		}
+		
+		echo "<div style:height=20px;>";
+			echo "&nbsp";
+		echo "</div>";	
+				
 ?>
 
-
-
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Summarise your SE</title>
-    <link rel="icon" type="image/png" href="/wp-content/uploads/2016/12/favicon-16x16-1.png">
-    <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Roboto:400,100,300,500,700,900" 	type="text/css" media="all">
-
-		<link rel="stylesheet" type="text/css" href="style.css">    
-</head>
-<body>
-
-<div class="container">
-<div align = "center">
-<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-<!-- RXP-AUTO -->
-<ins class="adsbygoogle"
-
-     style="display:block"
-
-     data-ad-client="ca-pub-6460140889486984"
-
-     data-ad-slot="7420663759"
-
-     data-ad-format="auto"></ins>
-
-<script>
-(adsbygoogle = window.adsbygoogle || []).push({});
-</script>
-</div>
-</div>
-
-
-
- <div class="container"><div align="center">
-
-	<button onclick=window.open('https://navyxp.com','_blank');>HOME</button>
-
-		<button onclick=window.open('https://navyxp.com/7-cpc/officers','_blank');>7 CPC</button>
-
-				<button onclick=window.open('https://navpay.gov.in','_blank');>NAVPAY</button>
-	    		    	<button onclick="window.location.href='https://navyxp.com/se/'">SE Tool</button>
-    <h1>SUMMARISE YOUR NAVPAY SE</h1>
-</div></div><br>
-
-	<div class="container">
-	
-	
-	
-        <?php
-			if(!empty($sessData['userLoggedIn']) && !empty($sessData['userID']))
-			{
-				include 'user.php';
-				$user = new User();
-				$conditions['where'] = array(
-					'id' => $sessData['userID'],
-				);
-				$conditions['return_type'] = 'single';
-				$userData = $user->getRows($conditions);
-				$dir=$userData['first_name'];
-		?>
-		<a href="userAccount.php?logoutSubmit=1" class="logout"><b>Log out</b></a>
-		<a href="/navpay/summary.php/" class="logout"><b>View Summary</b></a>
-		
-		<p></p><br />
-        <h2>Welcome <?php echo $userData['first_name']; ?>!</h2>
-        
-        
-        <p>Download Your SE (from March last year to Feb this year) in pdf format from  <a href = "https://navpay.gov.in" target="blank" title="NAVPAY">Navypay Website</a> using <font color="brown"> download</font> button at the bottom of Website</a>.  and place it in a folder in your Computer. Rename each file with its corresponding month. </p>
-
-<p><font color="red">SE downloaded correctly</font> from Navpay should look like <a href="se.png" target="blank" title="Correct SE Format">this image.</a> Other formats will not work.</p>
-        
-        <p><font color= "blue"> <b>Please rename SE using only first 3 letters of the month</b> </font><br />
-        For eg, <br />  SE of January Month should be renamed as jan.pdf  <br /> SE of February Month should be renamed feb.pdf <br /> 
-        SE of September Month should be renamed sep.pdf and so on</p>
-        
-        <p>SE downloaded from Navpay contains no personal information like Rank, P No, Unit, or Account Number. Hence its safe to upload</p>		   
-            
-            
-		<div class="upload">        	
-		<form action="upload.php" method="post" enctype="multipart/form-data">
-		<p>Select your renamed SE in pdf format to upload:</p>		
-
-		
-		<input type="file" name="fileToUpload1" id="fileToUpload1">
-		<p></p>
-		<input type="file" name="fileToUpload2" id="fileToUpload2">
-		<p></p>
-		<input type="file" name="fileToUpload3" id="fileToUpload3">
-		<p></p>
-		<input type="file" name="fileToUpload4" id="fileToUpload4">
-		<p></p>
-		<input type="file" name="fileToUpload5" id="fileToUpload5">
-		<p></p>
-		<input type="file" name="fileToUpload6" id="fileToUpload6">
-		<p></p>
-		<input type="file" name="fileToUpload7" id="fileToUpload7">
-		<p></p>
-		<input type="file" name="fileToUpload8" id="fileToUpload8">
-		<p></p>
-		<input type="file" name="fileToUpload9" id="fileToUpload9">
-		<p></p>		
-		<input type="file" name="fileToUpload10" id="fileToUpload10">
-		<p></p>
-		<input type="file" name="fileToUpload11" id="fileToUpload11">
-<p></p>
-                <input type="file" name="fileToUpload12" id="fileToUpload12">
-                <p></p>
-	
-	
-		<input type="submit" value="Upload" name="submit" style="float: right;" >
-		
-	<p><a href="https://navyxp.com/navpay/"><b><span>Reset</span><b></a></p>
-		</form>    
-		</div>
-		
-		
-		
-		
-		
-		
-        <?php }
-        
-        else{?>
-        
-		<h2>Login to Your Account</h2>
-        <?php echo !empty($statusMsg)?'<p class="'.$statusMsgType.'">'.$statusMsg.'</p>':''; ?>
-		<div class="regisFrm">
-			<form action="userAccount.php" method="post">
-				<input type="email" name="email" placeholder="EMAIL" required="">
-				<input type="password" name="password" placeholder="PASSWORD" required="">
-				<div class="send-button">
-					<input type="submit" name="loginSubmit" value="LOGIN">
-				</div>
-			</form>
-            <p>Don't have an account? <a href="registration.php">Register</a></p>
-		</div>
-        <?php } ?>
-        
-        
-        
-	</div>
-	
-<br>
-<div class="container">
-<div align = "center">
-<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-<!-- RXP-AUTO -->
-<ins class="adsbygoogle"
-     style="display:block"
-     data-ad-client="ca-pub-6460140889486984"
-     data-ad-slot="7420663759"
-     data-ad-format="auto"></ins>
-<script>
-(adsbygoogle = window.adsbygoogle || []).push({});
-</script>
-</div></div>
-<br />
-	
-	
-	
-	
 </body>
-</html>
+
+<?php
+	$connect->close();
+	include ('../location/footer.php');
+?>
 
 
 
